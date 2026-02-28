@@ -1,0 +1,57 @@
+(* Physical Parameters for the MORT Tesselator *)
+c = 3.0*10^8;
+f = 300.0*10^9; (* 300 GHz Operating Frequency *)
+lambda = c/f; (* 1mm wavelength *)
+k = 2 Pi/lambda;
+
+(* The Yin-Yang Shield Geometry: XOR logic via a central geometric ridge *)
+shieldPhaseShift[x_, y_] := If[Abs[x] < 0.0005 && Abs[y] < 0.0005, Pi, 0];
+
+(* The Tesselation Function: Wave interference calculation *)
+Tesselate[bitA_, bitB_, x_, y_] := Module[
+  {phiA, phiB, sourceA, sourceB, rA, rB, interferenceField},
+  
+  (* Convert digital inputs to Wave Phase (0 or Pi) *)
+  phiA = bitA * Pi;
+  phiB = bitB * Pi;
+  
+  (* Distance from the two photonic emitters at +/- 5mm *)
+  rA = Sqrt[(x + 0.005)^2 + y^2];
+  rB = Sqrt[(x - 0.005)^2 + y^2];
+  
+  (* Summation of E-fields passing through the topographical shield *)
+  sourceA = Exp[I * (k * rA + phiA)];
+  sourceB = Exp[I * (k * rB + phiB)];
+  
+  (* The result is the Interference Field *)
+  interferenceField = (sourceA + sourceB) * Exp[I * shieldPhaseShift[x, y]];
+  
+  (* Return Detected Power (Square of Amplitude) *)
+  Abs[interferenceField]^2
+];
+
+(* --- NEW: EMPIRICAL DATA EVALUATION BLOCK --- *)
+Print["--- EMPIRICAL TESSELATION DATA ---"];
+Do[
+  power = Tesselate[a, b, 0, 0]; (* Evaluate at central detector {0,0} *)
+  
+  (* Threshold detection logic from MORT spec: Result = 1 if P > 0.25 [cite: 52] *)
+  logicResult = If[power > 0.25, 1, 0]; 
+  
+  Print["Input: {", a, ",", b, "} | Detected Power: ", NumberForm[power, 4], 
+        " | Logic Output: ", logicResult];
+, {a, 0, 1}, {b, 0, 1}];
+Print["----------------------------------"];
+
+(* Generate the 2x2 Simulation Matrix for visual reference *)
+plots = Table[
+  Plot3D[Tesselate[a, b, x, y], {x, -0.01, 0.01}, {y, -0.01, 0.01}, 
+   PlotLabel -> Style["Input: {" <> ToString[a] <> "," <> ToString[b] <> "}", 12, Bold], 
+   PlotRange -> {0, 4}, 
+   Mesh -> None, 
+   Boxed -> False,
+   ColorFunction -> "TemperatureMap"], 
+ {a, 0, 1}, {b, 0, 1}];
+
+Print["MORT Tesselator: Real-time Geometric Computation Interference Map"];
+Grid[plots, Frame -> All, Spacings -> {1, 1}]

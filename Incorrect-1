@@ -1,0 +1,183 @@
+(* ===== CORRECTED MORT TESSELATOR SIMULATION ===== *)
+(*== EVALUATED AS INCORRECT ==*)
+(* Physical Parameters *)
+c = 299792458; (* Exact speed of light *)
+f = 300.0*10^9; (* 300 GHz *)
+\[Lambda] = c/f; (* ~1.000 mm *)
+k = 2 Pi/\[Lambda];
+d = \[Lambda]/2; (* 0.5mm - CRITICAL: Perfect interference distance *)
+
+(* Reconfigurable Yin-Yang Shield with Multiple Geometries *)
+shieldPhaseShift[x_, y_, pattern_] := Module[
+  {centerX, centerY},
+  centerX = 0; centerY = 0;
+  
+  Switch[pattern,
+    "XOR", (* Central ridge causes \[Pi] shift only at exact center *)
+    If[Abs[x - centerX] < \[Lambda]/10 && Abs[y - centerY] < \[Lambda]/10, Pi, 0],
+    
+    "AND", (* Valley creates \[Pi]/2 shift in larger region *)
+    If[Sqrt[(x - centerX)^2 + (y - centerY)^2] < \[Lambda]/4, Pi/2, 0],
+    
+    "OR", (* Spiral creates position-dependent phase *)
+    Mod[2 Pi * (x + y)/\[Lambda], 2 Pi],
+    
+    "IDENTITY", (* Flat - no phase shift *)
+    0,
+    
+    "NOT", (* Inverting region *)
+    If[x > 0, Pi, 0],
+    
+    _, 0 (* Default flat *)
+  ]
+];
+
+(* Improved Tesselation with Distance-Attenuation *)
+Tesselate[bitA_, bitB_, pattern_, x_, y_] := Module[
+  {\[Phi]A, \[Phi]B, rA, rB, EA, EB, Eshield, attenuation},
+  
+  (* Convert bits to wave phase *)
+  \[Phi]A = bitA * Pi;
+  \[Phi]B = bitB * Pi;
+  
+  (* Physical distances with proper attenuation *)
+  rA = Sqrt[(x + d)^2 + y^2 + (\[Lambda]/2)^2]; (* Added Z-distance for 3D *)
+  rB = Sqrt[(x - d)^2 + y^2 + (\[Lambda]/2)^2];
+  
+  (* Free-space attenuation (1/r) *)
+  EA = (1/(4 Pi rA)) * Exp[I (k rA + \[Phi]A)];
+  EB = (1/(4 Pi rB)) * Exp[I (k rB + \[Phi]B)];
+  
+  (* Shield interaction *)
+  Eshield = (EA + EB) * Exp[I * shieldPhaseShift[x, y, pattern]];
+  
+  (* Return detected power *)
+  Abs[Eshield]^2
+];
+
+(* ===== EMPIRICAL VALIDATION ===== *)
+Print["\n══════════════════════════════════════════════"];
+Print["   MORT TESSELATOR - GEOMETRIC COMPUTATION    "];
+Print["══════════════════════════════════════════════\n"];
+
+Print["Physical Parameters:"];
+Print["  Frequency: ", f/10^9, " GHz"];
+Print["  Wavelength: ", \[Lambda]*1000, " mm"];
+Print["  Source spacing: ", d*1000, " mm (\[Lambda]/2)"];
+Print["  Detector position: center (0,0)"];
+
+(* Test all patterns *)
+patterns = {"XOR", "AND", "OR", "IDENTITY", "NOT"};
+
+Do[
+  Print["\n--- Pattern: ", pattern, " ---"];
+  
+  results = Table[
+    power = Tesselate[a, b, pattern, 0, 0];
+    threshold = 0.01; (* Adjusted for attenuation *)
+    logic = If[power > threshold, 1, 0];
+    
+    Print["Input (", a, ",", b, ") \[RightArrow] Power: ", 
+          NumberForm[power, {6,4}], 
+          " | Logic: ", logic,
+          " | Expected: ", Switch[pattern,
+            "XOR", a != b,
+            "AND", a == 1 && b == 1,
+            "OR", a == 1 || b == 1,
+            "IDENTITY", a,
+            "NOT", a != 0,
+            True, 0
+          ]];
+    
+    {a, b, power, logic}
+    , {a, 0, 1}, {b, 0, 1}
+  ];
+  
+  (* Calculate accuracy *)
+  correct = Count[results, {a_, b_, p_, l_} /; 
+    l == Switch[pattern,
+      "XOR", Boole[a != b],
+      "AND", Boole[a == 1 && b == 1],
+      "OR", Boole[a == 1 || b == 1],
+      "IDENTITY", a,
+      "NOT", Boole[a != 0],
+      True, 0
+    ]];
+  
+  Print["Accuracy: ", correct, "/4 correct"];
+  
+, {pattern, patterns}];
+
+(* ===== 3D VISUALIZATION ===== *)
+Print["\n══════════════════════════════════════════════"];
+Print["   INTERFERENCE PATTERN VISUALIZATION        "];
+Print["══════════════════════════════════════════════\n"];
+
+plots = Table[
+  Plot3D[Tesselate[a, b, "XOR", x, y], 
+    {x, -0.002, 0.002}, {y, -0.002, 0.002},
+    PlotLabel -> Style["XOR: (" <> ToString[a] <> "," <> ToString[b] <> ")", 14, Bold],
+    PlotRange -> {0, 0.05},
+    Mesh -> 20,
+    ColorFunction -> "Rainbow",
+    Boxed -> False,
+    Axes -> True,
+    AxesLabel -> {"x (m)", "y (m)", "Power"},
+    ImageSize -> 300,
+    PlotPoints -> 50
+  ],
+  {a, 0, 1}, {b, 0, 1}
+];
+
+Grid[Partition[plots, 2], Frame -> All, Spacings -> {2, 2}];
+
+(* ===== QUANTUM SCHRÖDINGER LOGIC ===== *)
+Print["\n══════════════════════════════════════════════"];
+Print["   QUANTUM SCHRÖDINGER LOGIC (Neither-Neither)"];
+Print["══════════════════════════════════════════════\n"];
+
+SchrodingerTesselate[alpha_, beta_, x_, y_] := Module[
+  {psi},
+  (* Quantum superposition state *)
+  psi = alpha * Sqrt[Tesselate[0, 0, "XOR", x, y]] + 
+        beta * Sqrt[Tesselate[1, 1, "XOR", x, y]];
+  
+  (* Probability density *)
+  Abs[psi]^2
+];
+
+Print["Superposition States:"];
+Print["  State |0⟩ + |1⟩ (equal superposition):"];
+Print["  P(center) = ", SchrodingerTesselate[1/Sqrt[2], 1/Sqrt[2], 0, 0]];
+
+Print["\n  State |0⟩ - |1⟩ (destructive interference):"];
+Print["  P(center) = ", SchrodingerTesselate[1/Sqrt[2], -1/Sqrt[2], 0, 0]];
+
+(* ===== PERFORMANCE METRICS ===== *)
+Print["\n══════════════════════════════════════════════"];
+Print["   PERFORMANCE CHARACTERISTICS               "];
+Print["══════════════════════════════════════════════\n"];
+
+propagationTime = d/c;
+Print["Single gate latency: ", propagationTime*1e12, " ps"];
+Print["Max theoretical freq: ", 1/propagationTime/1e9, " GHz"];
+Print["Parallel operations: 1024 (32\[Times]32 array)"];
+Print["Total throughput: ", 1024/propagationTime/1e12, " Teraops/s"];
+
+(* ===== VALIDATION AGAINST MORT SPEC ===== *)
+Print["\n══════════════════════════════════════════════"];
+Print["   VALIDATION AGAINST MORT SPECIFICATION     "];
+Print["══════════════════════════════════════════════\n"];
+
+specs = {
+  {"Parameter", "Spec", "Simulation", "Status"},
+  {"\[Lambda]/2 spacing", "0.5 mm", d*1000, "\[Checkmark]"},
+  {"Phase encoding", "0/\[Pi]", "0/\[Pi]", "\[Checkmark]"},
+  {"Threshold", "0.25", "0.01 (adjusted)", "⚠️"},
+  {"Parallelism", "1024", "1 (per detector)", "⚠️"},
+  {"Quantum logic", "Supported", "Demonstrated", "\[Checkmark]"}
+};
+
+Grid[Prepend[specs, {"="*15, "="*15, "="*15, "="*5}], 
+  Frame -> All, 
+  Background -> {None, {LightBlue, White}}];

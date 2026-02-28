@@ -1,0 +1,9 @@
+cd C:\MORT\src
+cl /EHsc /O2 /openmp /arch:AVX2 /fp:fast mort_tesselator_core.cpp /Fe:mort_tesselator.exe
+
+mort_tesselator.exe
+
+cd C:\MORT\src
+cl /EHsc /O2 /openmp /arch:AVX2 /fp:fast DIGITAL_TESSELATOR.cpp /Fe:DIGITAL_TESSELATOR.exe
+
+mort_tesselator.exe

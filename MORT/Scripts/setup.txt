@@ -1,0 +1,13 @@
+mkdir C:\MORT
+cd C:\MORT
+
+# Create project structure
+mkdir src
+mkdir include
+mkdir build
+mkdir data
+mkdir scripts
+mkdir logs
+
+# Navigate to source directory
+cd src

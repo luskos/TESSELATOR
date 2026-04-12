@@ -1,0 +1,5 @@
+GPU: NVIDIA GeForce RTX 3050 Laptop GPU
+Baseline TFLOPS: 3.502
+MORT TFLOPS: 3.474
+Speedup: 0.992x
+Geometry: Counter({'ridge': 385})

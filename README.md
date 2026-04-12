@@ -4,3 +4,8 @@ speed allowed by nature without breaking any kind of laws as possible. It does n
 operate, the simplicity of the machine is such that who can say it's impossible events in nature to create conditions for such to emerge naturally? Who can really say it didn't happened already?
 
 The algorithms in this repo were explored for solving complex mathematical problems like solving BTC hashes based on MORT architecture of Yin-Yang dualism, which lead to creating programs that read 50gb/s chunks of data in about 0,002s on a mid range gaming laptop.
+
+
+TESS-V:
+compl2.py - premliminary test with 12.5% virtual tesselation applied improving over normal GPU work, if it be true transducing actually can juice 12.5% without much optimizations
+and also not yet proper with 12.5% faster, from 3.5TFLOPS to 3.99TFLOPS

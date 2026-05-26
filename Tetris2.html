@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tetris: Gravity Shift (Mobile Friendly)</title>
+    <style>
+        :root {
+            --bg-color: #0d0e15;
+            --panel-color: #1a1c29;
+            --accent-color: #00f0ff;
+            --text-color: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        h1 {
+            margin: 5px 0 0 0;
+            font-size: 1.8rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px var(--accent-color);
+        }
+
+        .twist-banner {
+            color: #ff0077;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .game-container {
+            display: flex;
+            gap: 15px;
+            background: var(--panel-color);
+            padding: 12px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.05);
+            max-width: 100%;
+        }
+
+        canvas {
+            border: 2px solid #2d3149;
+            background: #050508;
+            border-radius: 5px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            max-height: 45vh;
+            width: auto;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            width: 90px;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--accent-color);
+        }
+
+        .stat-box.twist {
+            border-left-color: #ff0077;
+        }
+
+        .label {
+            font-size: 0.65rem;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+
+        .value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        /* --- TOUCH GAMEPAD --- */
+        .gamepad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: 100%;
+            max-width: 340px;
+            margin-top: 15px;
+            padding: 5px;
+        }
+
+        .d-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 8px;
+            grid-column: span 2;
+        }
+
+        .btn {
+            background: #252839;
+            color: white;
+            border: 1px solid #3b3f58;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 0 #151722;
+            height: 55px;
+        }
+
+        .btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #151722;
+            background: #2e3247;
+        }
+
+        .btn-action {
+            grid-column: span 1;
+            height: auto;
+            background: var(--accent-color);
+            color: #000;
+            border-color: #00c2cc;
+            box-shadow: 0 4px 0 #009cb3;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-action:active {
+            background: #00c2cc;
+            box-shadow: 0 1px 0 #009cb3;
+        }
+
+        .btn-drop {
+            background: #ff0077;
+            border-color: #cc005f;
+            box-shadow: 0 4px 0 #990047;
+            color: white;
+        }
+        .btn-drop:active {
+            background: #cc005f;
+            box-shadow: 0 1px 0 #990047;
+        }
+
+        #game-over {
+            position: absolute;
+            top: 30%;
+            background: rgba(13, 14, 21, 0.95);
+            backdrop-filter: blur(5px);
+            border: 2px solid #ff0055;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+            box-shadow: 0 0 30px rgba(255,0,85,0.5);
+            z-index: 10;
+            width: 80%;
+            max-width: 300px;
+        }
+
+        button.restart-btn {
+            background: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-weight: bold;
+            border-radius: 5px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Tetris</h1>
+    <div class="twist-banner">⚡ Gravity Shift Edition ⚡</div>
+
+    <div class="game-container">
+        <canvas id="tetris" width="240" height="480"></canvas>
+        
+        <div class="sidebar">
+            <div class="stat-box">
+                <div class="label">Score</div>
+                <div id="score" class="value">0</div>
+            </div>
+            <div class="stat-box">
+                <div class="label">Lines</div>
+                <div id="lines" class="value">0</div>
+            </div>
+            <div class="stat-box twist">
+                <div class="label">Twist</div>
+                <div id="twist-status" class="value" style="font-size: 0.9rem; color: #ff0077;">READY</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOUCH CONTROLS FOR ANDROID -->
+    <div class="gamepad">
+        <div class="d-pad">
+            <div class="btn" id="ctrl-left">←</div>
+            <div class="btn" id="ctrl-down">↓</div>
+            <div class="btn" id="ctrl-right">→</div>
+            <div class="btn btn-drop" id="ctrl-space" style="grid-column: span 3; height: 45px; font-size: 0.9rem;">HARD DROP</div>
+        </div>
+        <div class="btn btn-action" id="ctrl-up">ROTATE</div>
+    </div>
+
+    <div id="game-over">
+        <h2 style="color: #ff0055; margin-top: 0; font-size: 1.5rem;">GAME OVER</h2>
+        <div id="final-score" style="font-size: 1.2rem; font-weight: bold; margin: 10px 0;">Score: 0</div>
+        <button class="restart-btn" onclick="resetGame()">Play Again</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('tetris');
+        const context = canvas.getContext('2d');
+        context.scale(24, 24); 
+
+        const SHAPES = [
+            null,
+            [[1, 1, 1, 1]], 
+            [[2, 2, 2], [0, 2, 0]], 
+            [[3, 3, 3], [3, 0, 0]], 
+            [[4, 4, 4], [0, 0, 4]], 
+            [[5, 5], [5, 5]], 
+            [[0, 6, 6], [6, 6, 0]], 
+            [[7, 7, 0], [0, 7, 7]], 
+            [[8]] 
+        ];
+
+        const COLORS = [
+            null,
+            '#00f0ff', '#a000ff', '#ffa500', '#0000ff', '#ffff00', '#ff0000', '#00ff00', '#ff0077'
+        ];
+
+        const arena = createMatrix(10, 20);
+        const player = { pos: {x: 0, y: 0}, matrix: null, isHeavy: false };
+
+        let dropCounter = 0;
+        let dropInterval = 1000; 
+        let lastTime = 0;
+        let score = 0;
+        let linesClearedTotal = 0;
+        let isShiftActive = false;
+        let animationId;
+
+        function createMatrix(w, h) {
+            const matrix = [];
+            while (h--) matrix.push(new Array(w).fill(0));
+            return matrix;
+        }
+
+        function draw() {
+            context.fillStyle = '#050508';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+
+            context.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            context.lineWidth = 0.05;
+            for(let i=0; i<10; i++) {
+                context.beginPath(); context.moveTo(i, 0); context.lineTo(i, 20); context.stroke();
+            }
+            for(let j=0; j<20; j++) {
+                context.beginPath(); context.moveTo(0, j); context.lineTo(10, j); context.stroke();
+            }
+
+            drawMatrix(arena, {x: 0, y: 0});
+            drawMatrix(player.matrix, player.pos);
+        }
+
+        function drawMatrix(matrix, offset) {
+            matrix.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        context.fillStyle = COLORS[value];
+                        context.fillRect(x + offset.x, y + offset.y, 1, 1);
+                        
+                        context.fillStyle = 'rgba(255,255,255,0.15)';
+                        context.fillRect(x + offset.x, y + offset.y, 1, 0.1);
+                        context.fillRect(x + offset.x, y + offset.y, 0.1, 1);
+
+                        if (value === 8) {
+                            context.fillStyle = '#ffffff';
+                            context.fillRect(x + offset.x + 0.3, y + offset.y + 0.3, 0.4, 0.4);
+                        }
+                    }
+                });
+            });
+        }
+
+        function merge(arena, player) {
+            player.matrix.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        arena[y + player.pos.y][x + player.pos.x] = value;
+                    }
+                });
+            });
+        }
+
+        function collide(arena, player) {
+            const [m, o] = [player.matrix, player.pos];
+            for (let y = 0; y < m.length; ++y) {
+                for (let x = 0; x < m[y].length; ++x) {
+                    if (m[y][x] !== 0 && (arena[y + o.y] && arena[y + o.y][x + o.x]) !== 0) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function arenaSweep() {
+            let rowCount = 1;
+            let cleared = false;
+            outer: for (let y = arena.length - 1; y > 0; --y) {
+                for (let x = 0; x < arena[y].length; ++x) {
+                    if (arena[y][x] === 0) continue outer;
+                }
+                const row = arena.splice(y, 1)[0].fill(0);
+                arena.unshift(row);
+                ++y;
+
+                score += rowCount * 10;
+                rowCount *= 2;
+                linesClearedTotal++;
+                cleared = true;
+            }
+            if (cleared) triggerGravityShift();
+            updateScore();
+        }
+
+        function triggerGravityShift() {
+            isShiftActive = true;
+            document.getElementById('twist-status').innerText = "SHIFTING!";
+            document.getElementById('twist-status').style.color = "#00f0ff";
+            dropInterval = 100;
+        }
+
+        function playerDrop() {
+            player.pos.y++;
+            if (player.isHeavy && collide(arena, player)) {
+                if(player.pos.y < 20) {
+                    arena[player.pos.y][player.pos.x] = 0; 
+                } else {
+                    player.pos.y--;
+                    lockAndReset();
+                }
+                dropCounter = 0;
+                return;
+            }
+            if (collide(arena, player)) {
+                player.pos.y--;
+                lockAndReset();
+            }
+            dropCounter = 0;
+        }
+
+        function lockAndReset() {
+            merge(arena, player);
+            arenaSweep();
+            playerReset();
+        }
+
+        function playerMove(dir) {
+            player.pos.x += dir;
+            if (collide(arena, player)) player.pos.x -= dir;
+        }
+
+        function playerReset() {
+            if (isShiftActive) {
+                isShiftActive = false;
+                dropInterval = Math.max(100, 1000 - (linesClearedTotal * 30));
+                document.getElementById('twist-status').innerText = "READY";
+                document.getElementById('twist-status').style.color = "#ff0077";
+            }
+
+            if (Math.random() > 0.85) {
+                player.matrix = SHAPES[8];
+                player.isHeavy = true;
+            } else {
+                const pieces = '1234567';
+                player.matrix = SHAPES[pieces[pieces.length * Math.random() | 0]];
+                player.isHeavy = false;
+            }
+
+            player.pos.y = 0;
+            player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
+
+            if (collide(arena, player)) {
+                document.getElementById('final-score').innerText = "Score: " + score;
+                document.getElementById('game-over').style.display = 'block';
+                cancelAnimationFrame(animationId);
+            }
+        }
+
+        function playerRotate(dir) {
+            const pos = player.pos.x;
+            let offset = 1;
+            rotate(player.matrix, dir);
+            while (collide(arena, player)) {
+                player.pos.x += offset;
+                offset = -(offset + (offset > 0 ? 1 : -1));
+                if (offset > player.matrix[0].length) {
+                    rotate(player.matrix, -dir);
+                    player.pos.x = pos;
+                    return;
+                }
+            }
+        }
+
+        function rotate(matrix, dir) {
+            for (let y = 0; y < matrix.length; ++y) {
+                for (let x = 0; x < y; ++x) {
+                    [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
+                }
+            }
+            if (dir > 0) matrix.forEach(row => row.reverse());
+            else matrix.reverse();
+        }
+
+        function updateScore() {
+            document.getElementById('score').innerText = score;
+            document.getElementById('lines').innerText = linesClearedTotal;
+        }
+
+        function handleHardDrop() {
+            while (!collide(arena, player)) {
+                player.pos.y++;
+            }
+            player.pos.y--;
+            lockAndReset();
+        }
+
+        function update(time = 0) {
+            const deltaTime = time - lastTime;
+            lastTime = time;
+            dropCounter += deltaTime;
+            if (dropCounter > dropInterval) playerDrop();
+            draw();
+            animationId = requestAnimationFrame(update);
+        }
+
+        function resetGame() {
+            arena.forEach(row => row.fill(0));
+            score = 0;
+            linesClearedTotal = 0;
+            dropInterval = 1000;
+            isShiftActive = false;
+            document.getElementById('game-over').style.display = 'none';
+            document.getElementById('twist-status').innerText = "READY";
+            updateScore();
+            playerReset();
+            update();
+        }
+
+        // --- KEYBOARD CONTROLS (Backwards compatibility) ---
+        document.addEventListener('keydown', event => {
+            if (event.keyCode === 37) playerMove(-1);
+            else if (event.keyCode === 39) playerMove(1);
+            else if (event.keyCode === 40) playerDrop();
+            else if (event.keyCode === 38) playerRotate(1);
+            else if (event.keyCode === 32) handleHardDrop();
+        });
+
+        // --- MOBILE TOUCH CONTROLS ---
+        const setupMobileBtn = (id, callback) => {
+            const btn = document.getElementById(id);
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                callback();
+            }, { passive: false });
+        };
+
+        setupMobileBtn('ctrl-left', () => playerMove(-1));
+        setupMobileBtn('ctrl-right', () => playerMove(1));
+        setupMobileBtn('ctrl-down', () => playerDrop());
+        setupMobileBtn('ctrl-up', () => playerRotate(1));
+        setupMobileBtn('ctrl-space', () => handleHardDrop());
+
+        // Initialize Game
+        playerReset();
+        update();
+    </script>
+</body>
+</html>

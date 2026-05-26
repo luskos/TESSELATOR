@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tetris: Gravity Shift</title>
+    <style>
+        :root {
+            --bg-color: #0d0e15;
+            --panel-color: #1a1c29;
+            --accent-color: #00f0ff;
+            --text-color: #ffffff;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.5rem;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 0 0 10px var(--accent-color);
+        }
+
+        .twist-banner {
+            color: #ff0077;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; text-shadow: 0 0 8px #ff0077; }
+            100% { opacity: 0.6; }
+        }
+
+        .game-container {
+            display: flex;
+            gap: 20px;
+            background: var(--panel-color);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 0 2px rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        canvas {
+            border: 2px solid #2d3149;
+            background: #050508;
+            border-radius: 5px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 150px;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .stat-box.twist {
+            border-left-color: #ff0077;
+        }
+
+        .label {
+            font-size: 0.8rem;
+            color: #aaa;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        .controls {
+            font-size: 0.8rem;
+            color: #777;
+            line-height: 1.4;
+            margin-top: auto;
+        }
+
+        #game-over {
+            position: absolute;
+            background: rgba(13, 14, 21, 0.85);
+            backdrop-filter: blur(5px);
+            border: 2px solid #ff0055;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+            box-shadow: 0 0 30px rgba(255,0,85,0.3);
+        }
+
+        button {
+            background: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px var(--accent-color);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Tetris</h1>
+    <div class="twist-banner">⚡ Gravity Shift Edition ⚡</div>
+
+    <div class="game-container">
+        <canvas id="tetris" width="240" height="480"></canvas>
+        
+        <div class="sidebar">
+            <div>
+                <div class="stat-box">
+                    <div class="label">Score</div>
+                    <div id="score" class="value">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Lines</div>
+                    <div id="lines" class="value">0</div>
+                </div>
+                <div class="stat-box twist">
+                    <div class="label">Twist Mode</div>
+                    <div id="twist-status" class="value" style="font-size: 1.1rem; color: #ff0077;">READY</div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <strong>Controls:</strong><br>
+                ← / → : Move<br>
+                ↑ : Rotate<br>
+                ↓ : Soft Drop<br>
+                Space : Hard Drop
+            </div>
+        </div>
+    </div>
+
+    <div id="game-over">
+        <h2 style="color: #ff0055; margin-top: 0;">GAME OVER</h2>
+        <p>Your matrix has overflowed.</p>
+        <div id="final-score" style="font-size: 1.5rem; font-weight: bold; margin: 15px 0;">Score: 0</div>
+        <button onclick="resetGame()">Play Again</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('tetris');
+        const context = canvas.getContext('2d');
+        context.scale(24, 24); // Scale up blocks (10x20 grid, 240x480 canvas)
+
+        const SHAPES = [
+            null,
+            [[1, 1, 1, 1]], // I
+            [[2, 2, 2], [0, 2, 0]], // T
+            [[3, 3, 3], [3, 0, 0]], // L
+            [[4, 4, 4], [0, 0, 4]], // J
+            [[5, 5], [5, 5]], // O
+            [[0, 6, 6], [6, 6, 0]], // Z
+            [[7, 7, 0], [0, 7, 7]], // S
+            [[8]] // Heavy Block (Twist Piece)
+        ];
+
+        const COLORS = [
+            null,
+            '#00f0ff', // Cyan
+            '#a000ff', // Purple
+            '#ffa500', // Orange
+            '#0000ff', // Blue
+            '#ffff00', // Yellow
+            '#ff0000', // Red
+            '#00ff00', // Green
+            '#ff0077'  // Neon Pink (Heavy Block)
+        ];
+
+        const arena = createMatrix(10, 20);
+        const player = {
+            pos: {x: 0, y: 0},
+            matrix: null,
+            isHeavy: false
+        };
+
+        let dropCounter = 0;
+        let dropInterval = 1000; // Starting 1 second
+        let lastTime = 0;
+        let score = 0;
+        let linesClearedTotal = 0;
+        let isShiftActive = false;
+
+        function createMatrix(w, h) {
+            const matrix = [];
+            while (h--) matrix.push(new Array(w).fill(0));
+            return matrix;
+        }
+
+        function draw() {
+            // Clear with a slight trail effect or clean black
+            context.fillStyle = '#050508';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Matrix Grid Lines (Subtle)
+            context.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            context.lineWidth = 0.05;
+            for(let i=0; i<10; i++) {
+                context.beginPath(); context.moveTo(i, 0); context.lineTo(i, 20); context.stroke();
+            }
+            for(let j=0; j<20; j++) {
+                context.beginPath(); context.moveTo(0, j); context.lineTo(10, j); context.stroke();
+            }
+
+            drawMatrix(arena, {x: 0, y: 0});
+            drawMatrix(player.matrix, player.pos);
+        }
+
+        function drawMatrix(matrix, offset) {
+            matrix.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        context.fillStyle = COLORS[value];
+                        context.fillRect(x + offset.x, y + offset.y, 1, 1);
+                        
+                        // Fancy Inner Shading
+                        context.fillStyle = 'rgba(255,255,255,0.15)';
+                        context.fillRect(x + offset.x, y + offset.y, 1, 0.1);
+                        context.fillRect(x + offset.x, y + offset.y, 0.1, 1);
+                        
+                        context.fillStyle = 'rgba(0,0,0,0.2)';
+                        context.fillRect(x + offset.x, y + offset.y + 0.9, 1, 0.1);
+                        context.fillRect(x + offset.x + 0.9, y + offset.y, 0.1, 1);
+
+                        // If it's a heavy block, give it an extra glowing core
+                        if (value === 8) {
+                            context.fillStyle = '#ffffff';
+                            context.fillRect(x + offset.x + 0.3, y + offset.y + 0.3, 0.4, 0.4);
+                        }
+                    }
+                });
+            });
+        }
+
+        function merge(arena, player) {
+            player.matrix.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        arena[y + player.pos.y][x + player.pos.x] = value;
+                    }
+                });
+            });
+        }
+
+        function collide(arena, player) {
+            const [m, o] = [player.matrix, player.pos];
+            for (let y = 0; y < m.length; ++y) {
+                for (let x = 0; x < m[y].length; ++x) {
+                    if (m[y][x] !== 0 &&
+                       (arena[y + o.y] &&
+                        arena[y + o.y][x + o.x]) !== 0) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function arenaSweep() {
+            let rowCount = 1;
+            let cleared = false;
+            outer: for (let y = arena.length - 1; y > 0; --y) {
+                for (let x = 0; x < arena[y].length; ++x) {
+                    if (arena[y][x] === 0) {
+                        continue outer;
+                    }
+                }
+
+                const row = arena.splice(y, 1)[0].fill(0);
+                arena.unshift(row);
+                ++y;
+
+                score += rowCount * 10;
+                rowCount *= 2;
+                linesClearedTotal++;
+                cleared = true;
+            }
+            
+            if (cleared) {
+                triggerGravityShift();
+            }
+            
+            updateScore();
+        }
+
+        // --- THE TWIST: GRAVITY SHIFT ---
+        function triggerGravityShift() {
+            isShiftActive = true;
+            document.getElementById('twist-status').innerText = "SHIFTING!";
+            document.getElementById('twist-status').style.color = "#00f0ff";
+            
+            // Speed up gravity temporarily
+            dropInterval = 100;
+
+            // Flash effect on UI
+            canvas.style.boxShadow = "0 0 30px #ff0077";
+            setTimeout(() => {
+                canvas.style.boxShadow = "0 0 20px rgba(0,0,0,0.8)";
+            }, 300);
+        }
+
+        function playerDrop() {
+            player.pos.y++;
+            
+            // Heavy block special collision handling
+            if (player.isHeavy && collide(arena, player)) {
+                // If heavy block hits something, smash through it until it hits bottom or clears
+                if(player.pos.y < 20) {
+                    arena[player.pos.y][player.pos.x] = 0; // Smash!
+                    // Visual feedback: Screen shake feel can go here
+                } else {
+                    player.pos.y--;
+                    lockAndReset();
+                }
+                dropCounter = 0;
+                return;
+            }
+
+            if (collide(arena, player)) {
+                player.pos.y--;
+                lockAndReset();
+            }
+            dropCounter = 0;
+        }
+
+        function lockAndReset() {
+            merge(arena, player);
+            arenaSweep();
+            playerReset();
+        }
+
+        function playerMove(dir) {
+            player.pos.x += dir;
+            if (collide(arena, player)) {
+                player.pos.x -= dir;
+            }
+        }
+
+        function playerReset() {
+            // Restore normal gravity if it was shifting
+            if (isShiftActive) {
+                isShiftActive = false;
+                dropInterval = Math.max(100, 1000 - (linesClearedTotal * 30)); // Scale difficulty
+                document.getElementById('twist-status').innerText = "READY";
+                document.getElementById('twist-status').style.color = "#ff0077";
+            }
+
+            // Decide next piece. If shift just happened, guarantee a Heavy Block (Piece index 8)
+            if (linesClearedTotal > 0 && Math.random() < 0.25 || (arena[19].includes(6) && Math.random() < 0.1)) {
+                 // Random chance or safety mechanic can trigger it, but lines cleared triggers the state
+            }
+            
+            // Twist logic: Give heavy block right after a gravity shift state finishes or randomly
+            if (Math.random() > 0.85) {
+                player.matrix = SHAPES[8];
+                player.isHeavy = true;
+            } else {
+                const pieces = '1234567';
+                player.matrix = SHAPES[pieces[pieces.length * Math.random() | 0]];
+                player.isHeavy = false;
+            }
+
+            player.pos.y = 0;
+            player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
+
+            // Game Over validation
+            if (collide(arena, player)) {
+                document.getElementById('final-score').innerText = "Score: " + score;
+                document.getElementById('game-over').style.display = 'block';
+                cancelAnimationFrame(animationId);
+            }
+        }
+
+        function playerRotate(dir) {
+            const pos = player.pos.x;
+            let offset = 1;
+            rotate(player.matrix, dir);
+            while (collide(arena, player)) {
+                player.pos.x += offset;
+                offset = -(offset + (offset > 0 ? 1 : -1));
+                if (offset > player.matrix[0].length) {
+                    rotate(player.matrix, -dir);
+                    player.pos.x = pos;
+                    return;
+                }
+            }
+        }
+
+        function rotate(matrix, dir) {
+            for (let y = 0; y < matrix.length; ++y) {
+                for (let x = 0; x < y; ++x) {
+                    [
+                        matrix[x][y],
+                        matrix[y][x],
+                    ] = [
+                        matrix[y][x],
+                        matrix[x][y],
+                    ];
+                }
+            }
+            if (dir > 0) {
+                matrix.forEach(row => row.reverse());
+            } else {
+                matrix.reverse();
+            }
+        }
+
+        function updateScore() {
+            document.getElementById('score').innerText = score;
+            document.getElementById('lines').innerText = linesClearedTotal;
+        }
+
+        let animationId;
+        function update(time = 0) {
+            const deltaTime = time - lastTime;
+            lastTime = time;
+
+            dropCounter += deltaTime;
+            if (dropCounter > dropInterval) {
+                playerDrop();
+            }
+
+            draw();
+            animationId = requestAnimationFrame(update);
+        }
+
+        function resetGame() {
+            arena.forEach(row => row.fill(0));
+            score = 0;
+            linesClearedTotal = 0;
+            dropInterval = 1000;
+            isShiftActive = false;
+            document.getElementById('game-over').style.display = 'none';
+            document.getElementById('twist-status').innerText = "READY";
+            document.getElementById('twist-status').style.color = "#ff0077";
+            updateScore();
+            playerReset();
+            update();
+        }
+
+        // Controls Layout
+        document.addEventListener('keydown', event => {
+            if (event.keyCode === 37) {
+                playerMove(-1);
+            } else if (event.keyCode === 39) {
+                playerMove(1);
+            } else if (event.keyCode === 40) {
+                playerDrop();
+            } else if (event.keyCode === 38) {
+                playerRotate(1);
+            } else if (event.keyCode === 32) { // Spacebar for Hard Drop
+                while (!collide(arena, player)) {
+                    player.pos.y++;
+                }
+                player.pos.y--;
+                lockAndReset();
+            }
+        });
+
+        // Initialize Game on load
+        playerReset();
+        update();
+    </script>
+</body>
+</html>
